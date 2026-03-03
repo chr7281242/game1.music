@@ -1,1 +1,265 @@
-音ゲー
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simple Rhythm Game</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --lane-color: #16213e;
+            --line-color: #0f3460;
+            --note-color: #e94560;
+            --highlight: #00fff2;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            background: var(--lane-color);
+            border-left: 2px solid var(--line-color);
+            border-right: 2px solid var(--line-color);
+            overflow: hidden;
+        }
+
+        /* 判定ライン */
+        #judge-line {
+            position: absolute;
+            bottom: 80px;
+            width: 100%;
+            height: 5px;
+            background: var(--highlight);
+            box-shadow: 0 0 10px var(--highlight);
+            z-index: 10;
+        }
+
+        /* レーンの区切り */
+        .lane-border {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1;
+        }
+
+        /* ノーツ */
+        .note {
+            position: absolute;
+            width: 25%;
+            height: 20px;
+            background: var(--note-color);
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--note-color);
+            z-index: 5;
+        }
+
+        /* スコア表示 */
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #score { font-size: 24px; font-weight: bold; }
+        #combo { font-size: 18px; color: var(--highlight); }
+
+        /* タップエフェクト用 */
+        .tap-zone {
+            position: absolute;
+            bottom: 0;
+            width: 25%;
+            height: 100px;
+            background: rgba(255, 255, 255, 0);
+            z-index: 20;
+        }
+        .tap-zone:active {
+            background: linear-gradient(to top, rgba(0, 255, 242, 0.3), transparent);
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: var(--note-color);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">
+        <div id="score">SCORE: 0</div>
+        <div id="combo">COMBO: 0</div>
+        <div id="message"></div>
+    </div>
+
+    <div id="judge-line"></div>
+    
+    <div class="lane-border" style="left: 25%;"></div>
+    <div class="lane-border" style="left: 50%;"></div>
+    <div class="lane-border" style="left: 75%;"></div>
+
+    <div class="tap-zone" style="left: 0%;" onmousedown="judge(0)" ontouchstart="judge(0)"></div>
+    <div class="tap-zone" style="left: 25%;" onmousedown="judge(1)" ontouchstart="judge(1)"></div>
+    <div class="tap-zone" style="left: 50%;" onmousedown="judge(2)" ontouchstart="judge(2)"></div>
+    <div class="tap-zone" style="left: 75%;" onmousedown="judge(3)" ontouchstart="judge(3)"></div>
+
+    <div id="start-screen">
+        <h1>RHYTHM GAME</h1>
+        <p>Key: D, F, J, K</p>
+        <button onclick="startGame()">START</button>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const scoreElement = document.getElementById('score');
+    const comboElement = document.getElementById('combo');
+    const messageElement = document.getElementById('message');
+    const startScreen = document.getElementById('start-screen');
+
+    let score = 0;
+    let combo = 0;
+    let notes = [];
+    let gameActive = false;
+    const laneKeys = ['d', 'f', 'j', 'k'];
+    const judgeY = window.innerHeight - 80; // 判定ラインの座標
+
+    function startGame() {
+        startScreen.style.display = 'none';
+        score = 0;
+        combo = 0;
+        gameActive = true;
+        updateUI();
+        spawnNotes();
+        requestAnimationFrame(update);
+    }
+
+    function spawnNotes() {
+        if (!gameActive) return;
+        // ランダムなレーンにノーツを生成
+        const lane = Math.floor(Math.random() * 4);
+        createNoteElement(lane);
+        // 生成間隔（徐々に早くするなどの調整が可能）
+        setTimeout(spawnNotes, 400 + Math.random() * 600);
+    }
+
+    function createNoteElement(lane) {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.style.left = (lane * 25) + '%';
+        note.style.top = '-20px';
+        container.appendChild(note);
+        
+        notes.push({
+            el: note,
+            lane: lane,
+            y: -20,
+            hit: false
+        });
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        for (let i = notes.length - 1; i >= 0; i--) {
+            const n = notes[i];
+            n.y += 5; // 落ちる速度
+            n.el.style.top = n.y + 'px';
+
+            // 画面外に消えた場合
+            if (n.y > window.innerHeight) {
+                if (!n.hit) {
+                    combo = 0;
+                    showMessage("MISS", "#ff4e4e");
+                }
+                container.removeChild(n.el);
+                notes.splice(i, 1);
+                updateUI();
+            }
+        }
+        requestAnimationFrame(update);
+    }
+
+    function judge(lane) {
+        if (!gameActive) return;
+
+        // 判定ラインに近いノーツを探す
+        const targetNote = notes.find(n => n.lane === lane && !n.hit && Math.abs(n.y - judgeY + 80) < 60);
+
+        if (targetNote) {
+            const diff = Math.abs(targetNote.y - judgeY + 80);
+            targetNote.hit = true;
+            targetNote.el.style.display = 'none';
+
+            if (diff < 20) {
+                score += 100;
+                combo++;
+                showMessage("PERFECT", "#00fff2");
+            } else {
+                score += 50;
+                combo++;
+                showMessage("GREAT", "#ffeb3b");
+            }
+        } else {
+            // 何もないところで叩いた場合（ペナルティなし、コンボ切断なしの簡易仕様）
+        }
+        updateUI();
+    }
+
+    function showMessage(txt, color) {
+        messageElement.innerText = txt;
+        messageElement.style.color = color;
+        setTimeout(() => { if(messageElement.innerText === txt) messageElement.innerText = ""; }, 500);
+    }
+
+    function updateUI() {
+        scoreElement.innerText = `SCORE: ${score}`;
+        comboElement.innerText = `COMBO: ${combo}`;
+    }
+
+    // キーボード入力対応
+    window.addEventListener('keydown', (e) => {
+        const keyIndex = laneKeys.indexOf(e.key.toLowerCase());
+        if (keyIndex !== -1) {
+            judge(keyIndex);
+        }
+    });
+</script>
+
+</body>
+</html>
