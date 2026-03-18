@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aqua Rhythm - Long Notes Edition</title>
+    <title>Aqua Rhythm - 3min Edition</title>
     <style>
         :root {
             --bg-color: #0b1018;
@@ -11,101 +11,78 @@
             --line-color: #1b2d3d;
             --note-color: #e0f7fa; 
             --note-glow: #00d4ff;
-            --long-note-color: rgba(0, 212, 255, 0.4);
             --highlight: #00fff2;
         }
 
         body {
-            margin: 0; padding: 0;
-            background-color: var(--bg-color);
-            color: white;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            overflow: hidden;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh;
-            touch-action: none; /* 長押し時の誤動作防止 */
+            margin: 0; padding: 0; background-color: var(--bg-color); color: white;
+            font-family: 'Helvetica Neue', Arial, sans-serif; overflow: hidden;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+            touch-action: none;
         }
 
         #game-container {
-            position: relative;
-            width: 100%; max-width: 400px; height: 100%;
-            background: var(--lane-color);
-            border-left: 1px solid var(--line-color);
-            border-right: 1px solid var(--line-color);
-            overflow: hidden;
+            position: relative; width: 100%; max-width: 400px; height: 100%;
+            background: var(--lane-color); border-left: 1px solid var(--line-color);
+            border-right: 1px solid var(--line-color); overflow: hidden;
         }
 
+        /* UIエリア */
         #ui {
-            position: absolute; top: 40px; width: 100%;
-            text-align: center; pointer-events: none; z-index: 100;
+            position: absolute; top: 40px; width: 100%; text-align: center;
+            pointer-events: none; z-index: 100;
         }
-
+        #timer { font-size: 14px; color: #5c7080; margin-bottom: 5px; }
         #score { font-size: 20px; font-weight: 200; letter-spacing: 2px; }
-        #combo { font-size: 32px; font-weight: bold; color: var(--note-glow); margin-top: 5px; height: 40px; }
-        #message { font-style: italic; font-weight: bold; margin-top: 10px; height: 20px; }
+        #combo { font-size: 32px; font-weight: bold; color: var(--note-glow); height: 40px; }
+        #message { font-style: italic; font-weight: bold; height: 20px; }
 
         #judge-line {
             position: absolute; bottom: 80px; width: 100%; height: 3px;
-            background: rgba(255, 255, 255, 0.8);
-            box-shadow: 0 0 15px var(--highlight);
-            z-index: 50;
+            background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 15px var(--highlight); z-index: 50;
         }
 
         .lane-border {
             position: absolute; top: 0; width: 1px; height: 100%;
-            background: linear-gradient(to bottom, transparent, var(--line-color));
-            z-index: 1;
+            background: linear-gradient(to bottom, transparent, var(--line-color)); z-index: 1;
         }
 
-        /* 通常ノーツ */
-        .note {
-            position: absolute; width: 25%; height: 15px;
-            background: var(--note-color);
-            border-radius: 2px;
-            box-shadow: 0 0 12px var(--note-glow), 0 0 4px #fff;
-            z-index: 10;
+        .note, .long-note {
+            position: absolute; width: 25%; background: var(--note-color);
+            border-radius: 2px; box-shadow: 0 0 12px var(--note-glow), 0 0 4px #fff; z-index: 10;
         }
-
-        /* ロングノーツ */
-        .long-note {
-            position: absolute; width: 25%;
-            background: linear-gradient(to bottom, var(--note-color), var(--long-note-color));
-            border-radius: 4px;
-            box-shadow: 0 0 10px var(--note-glow);
-            z-index: 5;
-        }
-
-        .long-note.pressing {
-            background: linear-gradient(to bottom, #fff, var(--highlight));
-            box-shadow: 0 0 20px var(--highlight);
-        }
+        .long-note { background: linear-gradient(to bottom, var(--note-color), rgba(0, 212, 255, 0.4)); }
 
         .tap-zone {
-            position: absolute; bottom: 0; width: 25%; height: 120px;
-            background: transparent; z-index: 60;
+            position: absolute; bottom: 0; width: 25%; height: 120px; z-index: 60;
         }
-        .tap-zone.active {
-            background: linear-gradient(to top, rgba(0, 212, 255, 0.4), transparent);
-        }
+        .tap-zone.active { background: linear-gradient(to top, rgba(0, 212, 255, 0.4), transparent); }
 
-        #start-screen {
+        /* スクリーン共通スタイル */
+        .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(11, 16, 24, 0.95);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000;
+            background: rgba(11, 16, 24, 0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000; text-align: center;
         }
 
         button {
             padding: 12px 40px; font-size: 18px; background: transparent;
             color: var(--note-glow); border: 1px solid var(--note-glow);
-            border-radius: 2px; cursor: pointer; letter-spacing: 3px;
+            border-radius: 2px; cursor: pointer; letter-spacing: 3px; margin-top: 20px;
         }
+
+        /* リズルト画面用 */
+        #result-screen h2 { font-weight: 200; letter-spacing: 8px; color: var(--highlight); }
+        .stat-label { font-size: 12px; color: #5c7080; margin-top: 15px; }
+        .stat-value { font-size: 24px; font-weight: bold; }
+        #rank { font-size: 64px; color: #fff; text-shadow: 0 0 20px var(--note-glow); margin: 10px 0; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="ui">
+        <div id="timer">TIME: 03:00</div>
         <div id="score">SCORE: 00000</div>
         <div id="combo"></div>
         <div id="message"></div>
@@ -117,104 +94,100 @@
     <div class="lane-border" style="left: 50%;"></div>
     <div class="lane-border" style="left: 75%;"></div>
 
-    <div id="zone-0" class="tap-zone" style="left: 0%;" onmousedown="handleStart(0)" onmouseup="handleEnd(0)" onmouseleave="handleEnd(0)" ontouchstart="handleStart(0)" ontouchend="handleEnd(0)"></div>
-    <div id="zone-1" class="tap-zone" style="left: 25%;" onmousedown="handleStart(1)" onmouseup="handleEnd(1)" onmouseleave="handleEnd(1)" ontouchstart="handleStart(1)" ontouchend="handleEnd(1)"></div>
-    <div id="zone-2" class="tap-zone" style="left: 50%;" onmousedown="handleStart(2)" onmouseup="handleEnd(2)" onmouseleave="handleEnd(2)" ontouchstart="handleStart(2)" ontouchend="handleEnd(2)"></div>
-    <div id="zone-3" class="tap-zone" style="left: 75%;" onmousedown="handleStart(3)" onmouseup="handleEnd(3)" onmouseleave="handleEnd(3)" ontouchstart="handleStart(3)" ontouchend="handleEnd(3)"></div>
+    <div id="zone-0" class="tap-zone" style="left: 0%;" onmousedown="handleStart(0)" onmouseup="handleEnd(0)" ontouchstart="handleStart(0)" ontouchend="handleEnd(0)"></div>
+    <div id="zone-1" class="tap-zone" style="left: 25%;" onmousedown="handleStart(1)" onmouseup="handleEnd(1)" ontouchstart="handleStart(1)" ontouchend="handleEnd(1)"></div>
+    <div id="zone-2" class="tap-zone" style="left: 50%;" onmousedown="handleStart(2)" onmouseup="handleEnd(2)" ontouchstart="handleStart(2)" ontouchend="handleEnd(2)"></div>
+    <div id="zone-3" class="tap-zone" style="left: 75%;" onmousedown="handleStart(3)" onmouseup="handleEnd(3)" ontouchstart="handleStart(3)" ontouchend="handleEnd(3)"></div>
 
-    <div id="start-screen">
+    <div id="start-screen" class="overlay">
         <h1 style="font-weight: 200; letter-spacing: 5px;">AQUA RHYTHM</h1>
-        <p style="font-size: 11px; color: #5c7080; margin-bottom: 30px;">Long notes added: Hold the key!</p>
+        <p style="font-size: 12px; color: #5c7080;">3 Minutes Challenge</p>
         <button onclick="startGame()">START</button>
+    </div>
+
+    <div id="result-screen" class="overlay" style="display: none;">
+        <h2>FINISH</h2>
+        <div id="rank">A</div>
+        <div class="stat-label">FINAL SCORE</div>
+        <div id="final-score" class="stat-value">0</div>
+        <div class="stat-label">MAX COMBO</div>
+        <div id="max-combo" class="stat-value">0</div>
+        <button onclick="location.reload()">RETRY</button>
     </div>
 </div>
 
 <script>
     const container = document.getElementById('game-container');
-    const scoreElement = document.getElementById('score');
-    const comboElement = document.getElementById('combo');
-    const messageElement = document.getElementById('message');
-    const startScreen = document.getElementById('start-screen');
+    const timerEl = document.getElementById('timer');
+    const scoreEl = document.getElementById('score');
+    const comboEl = document.getElementById('combo');
+    const messageEl = document.getElementById('message');
 
-    let score = 0;
-    let combo = 0;
-    let notes = [];
-    let gameActive = false;
-    let isPressing = [false, false, false, false];
+    let score = 0, combo = 0, maxCombo = 0, timeLeft = 180; // 180秒 = 3分
+    let notes = [], gameActive = false, isPressing = [false, false, false, false];
     const laneKeys = ['d', 'f', 'j', 'k'];
     const judgeY = window.innerHeight - 80;
 
     function startGame() {
-        startScreen.style.display = 'none';
-        score = 0; combo = 0; gameActive = true;
+        document.getElementById('start-screen').style.display = 'none';
+        gameActive = true;
         updateUI();
+        startTimer();
         spawnManager();
         requestAnimationFrame(update);
+    }
+
+    function startTimer() {
+        const timerInterval = setInterval(() => {
+            if (!gameActive) { clearInterval(timerInterval); return; }
+            timeLeft--;
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+            timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                endGame();
+            }
+        }, 1000);
     }
 
     function spawnManager() {
         if (!gameActive) return;
         const lane = Math.floor(Math.random() * 4);
-        const isLong = Math.random() > 0.7; // 30%の確率でロングノーツ
+        const isLong = Math.random() > 0.8;
+        createNote(lane, isLong, isLong ? 150 + Math.random() * 200 : 15);
         
-        if (isLong) {
-            createNote(lane, true, 150 + Math.random() * 200); // ランダムな長さ
-        } else {
-            createNote(lane, false);
-        }
-
-        let interval = Math.max(200, 600 - (score / 150));
-        setTimeout(spawnManager, interval + Math.random() * 400);
+        let interval = Math.max(150, 500 - (score / 200));
+        setTimeout(spawnManager, interval + Math.random() * 300);
     }
 
-    function createNote(lane, isLong, length = 15) {
+    function createNote(lane, isLong, length) {
         const note = document.createElement('div');
         note.className = isLong ? 'long-note' : 'note';
         note.style.left = (lane * 25) + '%';
         note.style.height = length + 'px';
         note.style.top = (-length) + 'px';
         container.appendChild(note);
-        
-        notes.push({
-            el: note,
-            lane: lane,
-            y: -length,
-            height: length,
-            isLong: isLong,
-            hit: false,
-            completed: false
-        });
+        notes.push({ el: note, lane: lane, y: -length, height: length, isLong: isLong, hit: false, completed: false });
     }
 
     function update() {
         if (!gameActive) return;
-
         for (let i = notes.length - 1; i >= 0; i--) {
             const n = notes[i];
-            n.y += 6;
+            n.y += 7;
             n.el.style.top = n.y + 'px';
 
-            // ロングノーツ押下中の処理
             if (n.isLong && isPressing[n.lane] && !n.completed) {
-                const headPos = n.y + n.height;
-                if (headPos >= judgeY - 30 && n.y <= judgeY) {
-                    n.el.classList.add('pressing');
+                if (n.y + n.height >= judgeY - 30 && n.y <= judgeY) {
                     score += 2;
-                    if (Math.random() > 0.9) { // 押下中たまにコンボ加算
-                        combo++;
-                        updateUI();
-                    }
-                } else {
-                    n.el.classList.remove('pressing');
+                    if (Math.random() > 0.95) { combo++; maxCombo = Math.max(maxCombo, combo); }
                 }
             }
 
-            // 画面外（ミス）判定
             if (n.y > window.innerHeight) {
-                if (!n.hit && !n.completed) {
-                    combo = 0;
-                    showMessage("MISS", "#5c7080");
-                }
+                if (!n.hit && !n.completed) { combo = 0; showMessage("MISS", "#5c7080"); }
                 container.removeChild(n.el);
                 notes.splice(i, 1);
                 updateUI();
@@ -227,23 +200,12 @@
         if (!gameActive) return;
         isPressing[lane] = true;
         document.getElementById(`zone-${lane}`).classList.add('active');
-
-        // 通常ノーツとロングノーツの頭の判定
         const target = notes.find(n => n.lane === lane && !n.hit && Math.abs((n.y + n.height) - judgeY) < 70);
-
         if (target) {
             target.hit = true;
-            if (!target.isLong) {
-                target.el.style.display = 'none';
-                score += 100;
-                combo++;
-                showMessage("PERFECT", "#fff");
-            } else {
-                // ロングノーツ開始
-                score += 50;
-                combo++;
-                showMessage("HOLD!", "#00d4ff");
-            }
+            if (!target.isLong) target.el.style.display = 'none';
+            score += 100; combo++; maxCombo = Math.max(maxCombo, combo);
+            showMessage("PERFECT", "#fff");
         }
         updateUI();
     }
@@ -251,35 +213,44 @@
     function handleEnd(lane) {
         isPressing[lane] = false;
         document.getElementById(`zone-${lane}`).classList.remove('active');
-        
-        // ロングノーツを離した時の判定
         const target = notes.find(n => n.lane === lane && n.isLong && n.hit && !n.completed);
         if (target) {
-            if (Math.abs(target.y - judgeY) < 60) {
-                target.completed = true;
-                target.el.style.opacity = '0.3';
-                score += 100;
-                showMessage("NICE HOLD", "#00fff2");
-            } else {
-                target.completed = true;
-                target.el.style.opacity = '0.3';
-                showMessage("RELEASE FAST", "#5c7080");
-            }
+            target.completed = true;
+            target.el.style.opacity = '0.3';
+            if (Math.abs(target.y - judgeY) < 60) { score += 100; showMessage("NICE!", "#00fff2"); }
         }
     }
 
-    function showMessage(txt, color) {
-        messageElement.innerText = txt;
-        messageElement.style.color = color;
-        setTimeout(() => { if(messageElement.innerText === txt) messageElement.innerText = ""; }, 500);
+    function endGame() {
+        gameActive = false;
+        const resultScreen = document.getElementById('result-screen');
+        const finalScoreEl = document.getElementById('final-score');
+        const maxComboEl = document.getElementById('max-combo');
+        const rankEl = document.getElementById('rank');
+
+        finalScoreEl.innerText = score.toLocaleString();
+        maxComboEl.innerText = maxCombo;
+
+        // ランク判定
+        let rank = "C";
+        if (score > 30000) rank = "S";
+        else if (score > 20000) rank = "A";
+        else if (score > 10000) rank = "B";
+        rankEl.innerText = rank;
+
+        resultScreen.style.display = 'flex';
     }
 
     function updateUI() {
-        scoreElement.innerText = `SCORE: ${score.toString().padStart(5, '0')}`;
-        comboElement.innerText = combo > 0 ? combo : "";
+        scoreEl.innerText = `SCORE: ${score.toString().padStart(5, '0')}`;
+        comboEl.innerText = combo > 0 ? combo : "";
     }
 
-    // キーボード操作
+    function showMessage(txt, color) {
+        messageEl.innerText = txt; messageEl.style.color = color;
+        setTimeout(() => { if(messageEl.innerText === txt) messageEl.innerText = ""; }, 500);
+    }
+
     window.addEventListener('keydown', (e) => {
         const idx = laneKeys.indexOf(e.key.toLowerCase());
         if (idx !== -1 && !isPressing[idx]) handleStart(idx);
