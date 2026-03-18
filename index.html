@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aqua Rhythm - Target Box Edition</title>
+    <title>Aqua Rhythm - Fixed Edition</title>
     <style>
         :root {
             --bg-color: #0b1018;
@@ -27,7 +27,6 @@
             border-right: 1px solid var(--line-color); overflow: hidden;
         }
 
-        /* UI */
         #ui {
             position: absolute; top: 40px; width: 100%; text-align: center;
             pointer-events: none; z-index: 100;
@@ -35,9 +34,8 @@
         #timer { font-size: 14px; color: #5c7080; margin-bottom: 5px; }
         #score { font-size: 20px; font-weight: 200; letter-spacing: 2px; }
         #combo { font-size: 32px; font-weight: bold; color: var(--note-glow); height: 40px; }
-        #message { font-style: italic; font-weight: bold; height: 20px; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        #message { font-size: 18px; font-style: italic; font-weight: bold; height: 20px; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
 
-        /* 判定エリア：四角い枠に変更 */
         .judge-boxes {
             position: absolute; bottom: 80px; width: 100%; height: 30px;
             display: flex; z-index: 50; pointer-events: none;
@@ -46,7 +44,6 @@
             flex: 1; margin: 0 5px; border: 2px solid rgba(0, 212, 255, 0.3);
             border-radius: 4px; box-sizing: border-box; transition: 0.1s;
         }
-        /* 押した時やノーツが重なった時の強調 */
         .target-box.active {
             border-color: var(--highlight);
             background: rgba(0, 255, 242, 0.15);
@@ -59,15 +56,14 @@
         }
 
         .note, .long-note {
-            position: absolute; width: calc(25% - 10px); left: 5px; /* 枠に合わせる */
-            background: var(--note-color); border-radius: 2px;
+            position: absolute; border-radius: 2px;
             box-shadow: 0 0 12px var(--note-glow), 0 0 4px #fff; z-index: 10;
         }
+        .note { background: var(--note-color); }
         .long-note { background: linear-gradient(to bottom, var(--note-color), rgba(0, 212, 255, 0.4)); }
 
         .tap-zone { position: absolute; bottom: 0; width: 25%; height: 150px; z-index: 60; }
 
-        /* スクリーン */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(11, 16, 24, 0.95); display: flex; flex-direction: column;
@@ -111,7 +107,7 @@
 
     <div id="start-screen" class="overlay">
         <h1 style="font-weight: 200; letter-spacing: 5px;">AQUA RHYTHM</h1>
-        <p style="font-size: 11px; color: #5c7080;">CHOOSE YOUR LEVEL</p>
+        <p style="font-size: 11px; color: #5c7080;">REPAIRED VERSION</p>
         <div class="btn-group">
             <button onclick="startGame('EASY')">EASY</button>
             <button onclick="startGame('NORMAL')">NORMAL</button>
@@ -140,6 +136,10 @@
     let score = 0, combo = 0, maxCombo = 0, timeLeft = 180;
     let notes = [], gameActive = false, isPressing = [false, false, false, false];
     let diffSetting = { speed: 6, interval: 600, longProb: 0.1 };
+    
+    // 【重要】各レーンが次にノーツを流せる時間を管理
+    let laneBusyUntil = [0, 0, 0, 0]; 
+
     const laneKeys = ['d', 'f', 'j', 'k'];
     const judgeY = window.innerHeight - 80;
 
@@ -154,22 +154,28 @@
         requestAnimationFrame(update);
     }
 
-    function startTimer() {
-        const timerInterval = setInterval(() => {
-            if (!gameActive) { clearInterval(timerInterval); return; }
-            timeLeft--;
-            let mins = Math.floor(timeLeft / 60);
-            let secs = timeLeft % 60;
-            timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-            if (timeLeft <= 0) endGame();
-        }, 1000);
-    }
-
     function spawnManager() {
         if (!gameActive) return;
-        const lane = Math.floor(Math.random() * 4);
-        const isLong = Math.random() < diffSetting.longProb;
-        createNote(lane, isLong, isLong ? 150 + Math.random() * 200 : 15);
+
+        let availableLanes = [];
+        const now = Date.now();
+        for(let i=0; i<4; i++) {
+            // 前のノーツから十分な時間が経過しているレーンだけ選ぶ
+            if (laneBusyUntil[i] < now) availableLanes.push(i);
+        }
+
+        if (availableLanes.length > 0) {
+            const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+            const isLong = Math.random() < diffSetting.longProb;
+            const length = isLong ? 150 + Math.random() * 200 : 15;
+
+            // 次のノーツを流すまでの待機時間を予約
+            // ロングノーツの場合はその長さ分だけ長めに予約する
+            laneBusyUntil[lane] = now + (isLong ? 1000 : 400); 
+
+            createNote(lane, isLong, length);
+        }
+        
         let interval = Math.max(100, diffSetting.interval - (score / 300));
         setTimeout(spawnManager, interval + Math.random() * 200);
     }
@@ -177,7 +183,6 @@
     function createNote(lane, isLong, length) {
         const note = document.createElement('div');
         note.className = isLong ? 'long-note' : 'note';
-        // 各レーン内の左右マージンを考慮して配置
         note.style.left = `calc(${lane * 25}% + 5px)`;
         note.style.width = `calc(25% - 10px)`;
         note.style.height = length + 'px';
@@ -193,7 +198,14 @@
             n.y += diffSetting.speed;
             n.el.style.top = n.y + 'px';
 
-            // 画面外ミス判定
+            // ロングノーツ押下中の加点
+            if (n.isLong && isPressing[n.lane] && !n.completed) {
+                if (n.y + n.height >= judgeY - 30 && n.y <= judgeY) {
+                    score += 2;
+                    if (Math.random() > 0.95) { combo++; maxCombo = Math.max(maxCombo, combo); updateUI(); }
+                }
+            }
+
             if (n.y > window.innerHeight) {
                 if (!n.hit && !n.completed) { combo = 0; showMessage("MISS", "#5c7080"); }
                 container.removeChild(n.el);
@@ -222,13 +234,23 @@
     function handleEnd(lane) {
         isPressing[lane] = false;
         document.getElementById(`box-${lane}`).classList.remove('active');
-        
         const target = notes.find(n => n.lane === lane && n.isLong && n.hit && !n.completed);
         if (target) {
             target.completed = true;
             target.el.style.opacity = '0.3';
             if (Math.abs(target.y - judgeY) < 60) { score += 100; showMessage("NICE!", "#00fff2"); }
         }
+    }
+
+    function startTimer() {
+        const timerInterval = setInterval(() => {
+            if (!gameActive) { clearInterval(timerInterval); return; }
+            timeLeft--;
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+            timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
     }
 
     function endGame() {
@@ -260,6 +282,5 @@
         if (idx !== -1) handleEnd(idx);
     });
 </script>
-
 </body>
 </html>
