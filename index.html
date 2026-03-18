@@ -1,3 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aqua Rhythm - Target Box Edition</title>
+    <style>
+        :root {
+            --bg-color: #0b1018;
+            --lane-color: #0d1a26;
+            --line-color: #1b2d3d;
+            --note-color: #e0f7fa; 
+            --note-glow: #00d4ff;
+            --highlight: #00fff2;
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-color); color: white;
+            font-family: 'Helvetica Neue', Arial, sans-serif; overflow: hidden;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative; width: 100%; max-width: 400px; height: 100%;
+            background: var(--lane-color); border-left: 1px solid var(--line-color);
+            border-right: 1px solid var(--line-color); overflow: hidden;
+        }
+
+        /* UI */
+        #ui {
+            position: absolute; top: 40px; width: 100%; text-align: center;
+            pointer-events: none; z-index: 100;
+        }
+        #timer { font-size: 14px; color: #5c7080; margin-bottom: 5px; }
+        #score { font-size: 20px; font-weight: 200; letter-spacing: 2px; }
+        #combo { font-size: 32px; font-weight: bold; color: var(--note-glow); height: 40px; }
+        #message { font-style: italic; font-weight: bold; height: 20px; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+
+        /* 判定エリア：四角い枠に変更 */
+        .judge-boxes {
+            position: absolute; bottom: 80px; width: 100%; height: 30px;
+            display: flex; z-index: 50; pointer-events: none;
+        }
+        .target-box {
+            flex: 1; margin: 0 5px; border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px; box-sizing: border-box; transition: 0.1s;
+        }
+        /* 押した時やノーツが重なった時の強調 */
+        .target-box.active {
+            border-color: var(--highlight);
+            background: rgba(0, 255, 242, 0.15);
+            box-shadow: 0 0 15px var(--highlight);
+        }
+
+        .lane-border {
+            position: absolute; top: 0; width: 1px; height: 100%;
+            background: linear-gradient(to bottom, transparent, var(--line-color)); z-index: 1;
+        }
+
+        .note, .long-note {
+            position: absolute; width: calc(25% - 10px); left: 5px; /* 枠に合わせる */
+            background: var(--note-color); border-radius: 2px;
+            box-shadow: 0 0 12px var(--note-glow), 0 0 4px #fff; z-index: 10;
+        }
+        .long-note { background: linear-gradient(to bottom, var(--note-color), rgba(0, 212, 255, 0.4)); }
+
+        .tap-zone { position: absolute; bottom: 0; width: 25%; height: 150px; z-index: 60; }
+
+        /* スクリーン */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 16, 24, 0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000; text-align: center;
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        button {
+            padding: 12px 40px; font-size: 16px; background: transparent;
+            color: var(--note-glow); border: 1px solid var(--note-glow);
+            border-radius: 2px; cursor: pointer; letter-spacing: 2px; transition: 0.2s;
+        }
+        button:hover { background: rgba(0, 212, 255, 0.1); box-shadow: 0 0 10px var(--note-glow); }
+        #rank { font-size: 64px; text-shadow: 0 0 20px var(--note-glow); margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">
+        <div id="timer">TIME: 03:00</div>
+        <div id="score">SCORE: 00000</div>
+        <div id="combo"></div>
+        <div id="message"></div>
+    </div>
+
+    <div class="judge-boxes">
+        <div id="box-0" class="target-box"></div>
+        <div id="box-1" class="target-box"></div>
+        <div id="box-2" class="target-box"></div>
+        <div id="box-3" class="target-box"></div>
+    </div>
+    
+    <div class="lane-border" style="left: 25%;"></div>
+    <div class="lane-border" style="left: 50%;"></div>
+    <div class="lane-border" style="left: 75%;"></div>
+
+    <div class="tap-zone" style="left: 0%;" onmousedown="handleStart(0)" onmouseup="handleEnd(0)" ontouchstart="handleStart(0)" ontouchend="handleEnd(0)"></div>
+    <div class="tap-zone" style="left: 25%;" onmousedown="handleStart(1)" onmouseup="handleEnd(1)" ontouchstart="handleStart(1)" ontouchend="handleEnd(1)"></div>
+    <div class="tap-zone" style="left: 50%;" onmousedown="handleStart(2)" onmouseup="handleEnd(2)" ontouchstart="handleStart(2)" ontouchend="handleEnd(2)"></div>
+    <div class="tap-zone" style="left: 75%;" onmousedown="handleStart(3)" onmouseup="handleEnd(3)" ontouchstart="handleStart(3)" ontouchend="handleEnd(3)"></div>
+
+    <div id="start-screen" class="overlay">
+        <h1 style="font-weight: 200; letter-spacing: 5px;">AQUA RHYTHM</h1>
+        <p style="font-size: 11px; color: #5c7080;">CHOOSE YOUR LEVEL</p>
+        <div class="btn-group">
+            <button onclick="startGame('EASY')">EASY</button>
+            <button onclick="startGame('NORMAL')">NORMAL</button>
+            <button onclick="startGame('HARD')">HARD</button>
+        </div>
+    </div>
+
+    <div id="result-screen" class="overlay" style="display: none;">
+        <h2 id="res-diff-name">FINISH</h2>
+        <div id="rank">A</div>
+        <div class="stat-label">FINAL SCORE</div>
+        <div id="final-score" class="stat-value">0</div>
+        <div class="stat-label">MAX COMBO</div>
+        <div id="max-combo" class="stat-value">0</div>
+        <button onclick="location.reload()">RETRY</button>
+    </div>
+</div>
+
 <script>
     const container = document.getElementById('game-container');
     const timerEl = document.getElementById('timer');
@@ -8,10 +140,6 @@
     let score = 0, combo = 0, maxCombo = 0, timeLeft = 180;
     let notes = [], gameActive = false, isPressing = [false, false, false, false];
     let diffSetting = { speed: 6, interval: 600, longProb: 0.1 };
-    
-    // 追加：各レーンが「いつまで占有されているか」を記録する
-    let laneBusyUntil = [0, 0, 0, 0]; 
-
     const laneKeys = ['d', 'f', 'j', 'k'];
     const judgeY = window.innerHeight - 80;
 
@@ -26,39 +154,30 @@
         requestAnimationFrame(update);
     }
 
+    function startTimer() {
+        const timerInterval = setInterval(() => {
+            if (!gameActive) { clearInterval(timerInterval); return; }
+            timeLeft--;
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+            timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
     function spawnManager() {
         if (!gameActive) return;
-
-        // 空いているレーンを探す
-        let availableLanes = [];
-        const now = Date.now();
-        for(let i=0; i<4; i++) {
-            if (laneBusyUntil[i] < now) availableLanes.push(i);
-        }
-
-        if (availableLanes.length > 0) {
-            const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
-            const isLong = Math.random() < diffSetting.longProb;
-            const length = isLong ? 150 + Math.random() * 200 : 15;
-
-            // 重要：そのレーンが次に使えるようになる時間を計算（ノーツが通り過ぎるまで予約）
-            // ノーツの長さ ＋ 安全な間隔（200ms程度）
-            const travelTime = (window.innerHeight / diffSetting.speed) * 16.6; // およその到達時間
-            laneBusyUntil[lane] = now + (isLong ? 800 : 300); 
-
-            createNote(lane, isLong, length);
-        }
-        
+        const lane = Math.floor(Math.random() * 4);
+        const isLong = Math.random() < diffSetting.longProb;
+        createNote(lane, isLong, isLong ? 150 + Math.random() * 200 : 15);
         let interval = Math.max(100, diffSetting.interval - (score / 300));
         setTimeout(spawnManager, interval + Math.random() * 200);
     }
 
-    // --- 以下、以前の関数と同じ（createNote, update, handleStart, handleEnd, etc...） ---
-    // ※ 変更がないため、以前のコードの続きとしてお使いいただけます。
-    
     function createNote(lane, isLong, length) {
         const note = document.createElement('div');
         note.className = isLong ? 'long-note' : 'note';
+        // 各レーン内の左右マージンを考慮して配置
         note.style.left = `calc(${lane * 25}% + 5px)`;
         note.style.width = `calc(25% - 10px)`;
         note.style.height = length + 'px';
@@ -74,6 +193,7 @@
             n.y += diffSetting.speed;
             n.el.style.top = n.y + 'px';
 
+            // 画面外ミス判定
             if (n.y > window.innerHeight) {
                 if (!n.hit && !n.completed) { combo = 0; showMessage("MISS", "#5c7080"); }
                 container.removeChild(n.el);
@@ -87,8 +207,7 @@
     function handleStart(lane) {
         if (!gameActive) return;
         isPressing[lane] = true;
-        const box = document.getElementById(`box-${lane}`);
-        if(box) box.classList.add('active');
+        document.getElementById(`box-${lane}`).classList.add('active');
 
         const target = notes.find(n => n.lane === lane && !n.hit && Math.abs((n.y + n.height) - judgeY) < 70);
         if (target) {
@@ -102,8 +221,7 @@
 
     function handleEnd(lane) {
         isPressing[lane] = false;
-        const box = document.getElementById(`box-${lane}`);
-        if(box) box.classList.remove('active');
+        document.getElementById(`box-${lane}`).classList.remove('active');
         
         const target = notes.find(n => n.lane === lane && n.isLong && n.hit && !n.completed);
         if (target) {
@@ -111,17 +229,6 @@
             target.el.style.opacity = '0.3';
             if (Math.abs(target.y - judgeY) < 60) { score += 100; showMessage("NICE!", "#00fff2"); }
         }
-    }
-
-    function startTimer() {
-        const timerInterval = setInterval(() => {
-            if (!gameActive) { clearInterval(timerInterval); return; }
-            timeLeft--;
-            let mins = Math.floor(timeLeft / 60);
-            let secs = timeLeft % 60;
-            timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-            if (timeLeft <= 0) endGame();
-        }, 1000);
     }
 
     function endGame() {
@@ -153,3 +260,6 @@
         if (idx !== -1) handleEnd(idx);
     });
 </script>
+
+</body>
+</html>
