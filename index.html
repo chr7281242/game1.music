@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aqua Rhythm - 3min Edition</title>
+    <title>Aqua Rhythm - Difficulty Select</title>
     <style>
         :root {
             --bg-color: #0b1018;
@@ -27,7 +27,7 @@
             border-right: 1px solid var(--line-color); overflow: hidden;
         }
 
-        /* UIエリア */
+        /* UI */
         #ui {
             position: absolute; top: 40px; width: 100%; text-align: center;
             pointer-events: none; z-index: 100;
@@ -53,29 +53,28 @@
         }
         .long-note { background: linear-gradient(to bottom, var(--note-color), rgba(0, 212, 255, 0.4)); }
 
-        .tap-zone {
-            position: absolute; bottom: 0; width: 25%; height: 120px; z-index: 60;
-        }
+        .tap-zone { position: absolute; bottom: 0; width: 25%; height: 120px; z-index: 60; }
         .tap-zone.active { background: linear-gradient(to top, rgba(0, 212, 255, 0.4), transparent); }
 
-        /* スクリーン共通スタイル */
+        /* スクリーン */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(11, 16, 24, 0.95); display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 1000; text-align: center;
         }
 
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         button {
-            padding: 12px 40px; font-size: 18px; background: transparent;
+            padding: 12px 40px; font-size: 16px; background: transparent;
             color: var(--note-glow); border: 1px solid var(--note-glow);
-            border-radius: 2px; cursor: pointer; letter-spacing: 3px; margin-top: 20px;
+            border-radius: 2px; cursor: pointer; letter-spacing: 2px; transition: 0.2s;
         }
+        button:hover { background: rgba(0, 212, 255, 0.1); box-shadow: 0 0 10px var(--note-glow); }
 
-        /* リズルト画面用 */
         #result-screen h2 { font-weight: 200; letter-spacing: 8px; color: var(--highlight); }
-        .stat-label { font-size: 12px; color: #5c7080; margin-top: 15px; }
-        .stat-value { font-size: 24px; font-weight: bold; }
-        #rank { font-size: 64px; color: #fff; text-shadow: 0 0 20px var(--note-glow); margin: 10px 0; }
+        .stat-label { font-size: 11px; color: #5c7080; margin-top: 10px; }
+        .stat-value { font-size: 20px; font-weight: bold; }
+        #rank { font-size: 64px; text-shadow: 0 0 20px var(--note-glow); margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -89,7 +88,6 @@
     </div>
 
     <div id="judge-line"></div>
-    
     <div class="lane-border" style="left: 25%;"></div>
     <div class="lane-border" style="left: 50%;"></div>
     <div class="lane-border" style="left: 75%;"></div>
@@ -100,19 +98,23 @@
     <div id="zone-3" class="tap-zone" style="left: 75%;" onmousedown="handleStart(3)" onmouseup="handleEnd(3)" ontouchstart="handleStart(3)" ontouchend="handleEnd(3)"></div>
 
     <div id="start-screen" class="overlay">
-        <h1 style="font-weight: 200; letter-spacing: 5px;">AQUA RHYTHM</h1>
-        <p style="font-size: 12px; color: #5c7080;">3 Minutes Challenge</p>
-        <button onclick="startGame()">START</button>
+        <h1 style="font-weight: 200; letter-spacing: 5px; margin-bottom: 5px;">AQUA RHYTHM</h1>
+        <p style="font-size: 11px; color: #5c7080; margin-bottom: 20px;">SELECT DIFFICULTY</p>
+        <div class="btn-group">
+            <button onclick="startGame('EASY')">EASY</button>
+            <button onclick="startGame('NORMAL')">NORMAL</button>
+            <button onclick="startGame('HARD')">HARD</button>
+        </div>
     </div>
 
     <div id="result-screen" class="overlay" style="display: none;">
-        <h2>FINISH</h2>
+        <h2 id="res-diff-name">FINISH</h2>
         <div id="rank">A</div>
         <div class="stat-label">FINAL SCORE</div>
         <div id="final-score" class="stat-value">0</div>
         <div class="stat-label">MAX COMBO</div>
         <div id="max-combo" class="stat-value">0</div>
-        <button onclick="location.reload()">RETRY</button>
+        <button onclick="location.reload()">BACK TO MENU</button>
     </div>
 </div>
 
@@ -123,13 +125,19 @@
     const comboEl = document.getElementById('combo');
     const messageEl = document.getElementById('message');
 
-    let score = 0, combo = 0, maxCombo = 0, timeLeft = 180; // 180秒 = 3分
+    let score = 0, combo = 0, maxCombo = 0, timeLeft = 180;
     let notes = [], gameActive = false, isPressing = [false, false, false, false];
+    let diffSetting = { speed: 6, interval: 600, longProb: 0.1 };
     const laneKeys = ['d', 'f', 'j', 'k'];
     const judgeY = window.innerHeight - 80;
 
-    function startGame() {
+    function startGame(diff) {
         document.getElementById('start-screen').style.display = 'none';
+        // 難易度ごとの設定
+        if (diff === 'EASY')   diffSetting = { name: 'EASY', speed: 5, interval: 800, longProb: 0.1 };
+        if (diff === 'NORMAL') diffSetting = { name: 'NORMAL', speed: 7, interval: 500, longProb: 0.2 };
+        if (diff === 'HARD')   diffSetting = { name: 'HARD', speed: 10, interval: 300, longProb: 0.4 };
+
         gameActive = true;
         updateUI();
         startTimer();
@@ -144,22 +152,18 @@
             let mins = Math.floor(timeLeft / 60);
             let secs = timeLeft % 60;
             timerEl.innerText = `TIME: ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-            
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                endGame();
-            }
+            if (timeLeft <= 0) { clearInterval(timerInterval); endGame(); }
         }, 1000);
     }
 
     function spawnManager() {
         if (!gameActive) return;
         const lane = Math.floor(Math.random() * 4);
-        const isLong = Math.random() > 0.8;
+        const isLong = Math.random() < diffSetting.longProb;
         createNote(lane, isLong, isLong ? 150 + Math.random() * 200 : 15);
         
-        let interval = Math.max(150, 500 - (score / 200));
-        setTimeout(spawnManager, interval + Math.random() * 300);
+        let interval = Math.max(100, diffSetting.interval - (score / 300));
+        setTimeout(spawnManager, interval + Math.random() * 200);
     }
 
     function createNote(lane, isLong, length) {
@@ -176,7 +180,7 @@
         if (!gameActive) return;
         for (let i = notes.length - 1; i >= 0; i--) {
             const n = notes[i];
-            n.y += 7;
+            n.y += diffSetting.speed;
             n.el.style.top = n.y + 'px';
 
             if (n.isLong && isPressing[n.lane] && !n.completed) {
@@ -223,22 +227,21 @@
 
     function endGame() {
         gameActive = false;
-        const resultScreen = document.getElementById('result-screen');
-        const finalScoreEl = document.getElementById('final-score');
-        const maxComboEl = document.getElementById('max-combo');
+        document.getElementById('result-screen').style.display = 'flex';
+        document.getElementById('res-diff-name').innerText = diffSetting.name + " CLEAR";
+        document.getElementById('final-score').innerText = score.toLocaleString();
+        document.getElementById('max-combo').innerText = maxCombo;
+
+        let rank = "C", color = "#5c7080";
+        const border = (diffSetting.name === 'HARD') ? 50000 : (diffSetting.name === 'NORMAL' ? 30000 : 15000);
+        
+        if (score >= border) { rank = "S"; color = "#ffd700"; }
+        else if (score >= border * 0.7) { rank = "A"; color = "#fff"; }
+        else if (score >= border * 0.4) { rank = "B"; color = "#00d4ff"; }
+        
         const rankEl = document.getElementById('rank');
-
-        finalScoreEl.innerText = score.toLocaleString();
-        maxComboEl.innerText = maxCombo;
-
-        // ランク判定
-        let rank = "C";
-        if (score > 30000) rank = "S";
-        else if (score > 20000) rank = "A";
-        else if (score > 10000) rank = "B";
         rankEl.innerText = rank;
-
-        resultScreen.style.display = 'flex';
+        rankEl.style.color = color;
     }
 
     function updateUI() {
